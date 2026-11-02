@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>oye: 1000 spoken Spanish words</title>
+  <meta name="description" content="Flashcards for the 1000 most common words in spoken Spanish, with audio, examples and stress marks.">
+  <meta name="theme-color" content="#E5ECE8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#131A18" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="oye">
+  <link rel="preload" href="fonts/gentium-book-plus-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/gentium-book-plus-latin-ext-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/andika-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <a class="wordmark" href="#/today" aria-label="oye, go to Today">
+      <span class="staff staff-mark" data-py="*o|ye" aria-hidden="true"></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/today" data-view="today"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg><span>Today</span></a>
+      <a href="#/study" data-view="study"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="13" height="14" rx="2"/><path d="M7.5 3.5h11a2 2 0 0 1 2 2v12"/></svg><span>Study</span></a>
+      <a href="#/words" data-view="words"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6.5h12M8 12h12M8 17.5h12"/><circle cx="4" cy="6.5" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="17.5" r="1"/></svg><span>Words</span></a>
+      <a href="#/settings" data-view="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Settings</span></a>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="view" id="view-today" aria-labelledby="today-title" hidden></section>
+    <section class="view" id="view-study" aria-label="Study" hidden></section>
+    <section class="view" id="view-words" aria-labelledby="words-title" hidden></section>
+    <section class="view" id="view-settings" aria-labelledby="settings-title" hidden></section>
+  </main>
+
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <noscript><p class="noscript">This app needs JavaScript to run.</p></noscript>
+  <script src="words.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
