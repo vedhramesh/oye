@@ -386,6 +386,40 @@ body.mono-tones .staff-svg rect.bar.st { fill: var(--ink-2); }
 .voice-help { margin: 0 0 14px; padding-left: 20px; font-size: 15px; max-width: 62ch; }
 .voice-help li { margin: 0 0 6px; }
 
+/* ---------- quiz ---------- */
+.quiz-head { padding: 14px 0 0; }
+.quiz-head h1 { font-size: 30px; margin: 0 0 8px; font-weight: 700; }
+.quiz-head p { color: var(--ink-2); margin: 0; max-width: 56ch; }
+.quiz-card { min-height: 0; }
+.quiz-card .card-front { padding: 14px 0 18px; }
+.quiz-card .spec-row .staff.head { font-size: clamp(40px, 11vw, 64px); }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 519px) { .opts { grid-template-columns: 1fr; } }
+.opt {
+  display: flex; align-items: center; gap: 12px; text-align: left; min-height: 60px; padding: 10px 14px;
+  border-radius: var(--r-ctl); border: 1.5px solid var(--line-strong); background: var(--card); font-size: 17px; line-height: 1.3;
+}
+.opt .key { flex: none; width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; background: var(--card-2); color: var(--ink-2); font-size: 13px; font-weight: 700; }
+.opt .py { font-size: 24px; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt.right { border: 2.5px solid var(--ink); }
+.opt.right .key { background: var(--ink); color: var(--card); }
+.opt.wrong { border-style: dashed; }
+.opt.wrong .key { background: var(--ink-3); color: var(--card); }
+.opt.wrong > span:last-child { text-decoration: line-through; text-decoration-color: var(--ink-3); }
+.opt.dim { opacity: .5; }
+.quiz-reveal { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.quiz-reveal .verdict { margin: 0 0 4px; color: var(--ink-2); font-size: 15px; }
+.quiz-reveal .spec-row .staff.head { font-size: clamp(34px, 9vw, 48px); }
+.quiz-reveal .gloss { margin-top: 4px; }
+.misses { list-style: none; margin: 8px 0 0; padding: 0; }
+.misses li { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.misses li + li { border-top: 1px solid var(--line); }
+.misses .what { flex: 1; min-width: 0; }
+.misses .py { display: block; font-size: 22px; }
+.misses .en { display: block; color: var(--ink-2); font-size: 15px; }
+
 /* ---------- word glosses in examples ---------- */
 .w {
   border-radius: 4px; cursor: help; padding: 0 1px; margin: 0 -1px;

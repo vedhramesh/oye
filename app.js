@@ -323,7 +323,7 @@
   }
 
   // ---------------------------------------------------------------- router
-  const VIEWS = ['today', 'study', 'words', 'settings'];
+  const VIEWS = ['today', 'study', 'quiz', 'words', 'settings'];
   let current = null;
   function route() {
     const v = (location.hash.match(/^#\/(\w+)/) || [])[1];
@@ -335,7 +335,7 @@
     current = view;
     for (const v of VIEWS) $('#view-' + v).hidden = v !== view;
     $$('.nav a').forEach((a) => (a.dataset.view === view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
-    ({ today: renderToday, study: renderStudy, words: renderWords, settings: renderSettings })[view]();
+    ({ today: renderToday, study: renderStudy, quiz: renderQuiz, words: renderWords, settings: renderSettings })[view]();
     if (changed) window.scrollTo(0, 0);
   }
 
@@ -372,6 +372,7 @@
         nextDd !== Infinity ? `Next reviews ${nextDd - q.today <= 1 ? 'are due tomorrow' : `in ${nextDd - q.today} days`}.` : 'Nothing is due.';
       actions = `<button class="btn" data-act="more">Learn 10 more words</button>`;
     }
+    if (started >= 4) actions += '<a class="btn" href="#/quiz">Take a quiz</a>';
     const counts = [0, 0, 0, 0];
     let dots = '';
     for (let i = 0; i < N; i++) { const s = stateOf(i); counts[s]++; dots += `<i class="s${s}${i === peekIdx ? ' sel' : ''}" data-i="${i}"></i>`; }
@@ -676,6 +677,139 @@
     if (current === 'study') nextCard();
   }
 
+  // ---------------------------------------------------------------- quiz
+  // Multiple choice on words you've already studied. Doesn't touch the schedule
+  // unless you choose to send your misses back to Study.
+  const quiz = { qs: null, k: 0, score: 0, picked: null, missed: [], sent: false, len: 10 };
+  const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const gloss1 = (i) => smart(W[i][EN].replace(/\{\{[^|}]+\|([^}]+)\}\}|\{\{([^}]+)\}\}|\[\[([^\]]+)\]\]/g, (m, a, b, c) => a || b || c).split(';')[0].trim());
+  const startedIdx = () => Object.keys(S.cards).map(Number);
+
+  function buildQuiz(len) {
+    const learned = startedIdx();
+    const pool = shuffle(learned).slice(0, len);
+    const types = shuffle(noVoice() ? ['en2w', 'w2en'] : ['hear', 'en2w', 'w2en']);
+    return pool.map((i, n) => {
+      const type = types[n % types.length];
+      const label = (j) => (type === 'en2w' ? plain(W[j][P]) : gloss1(j));
+      const seen = new Set([label(i)]);
+      const opts = [i];
+      // Wrong answers come from words you've studied first (harder), then from the rest of the list.
+      for (const j of shuffle(learned).concat(shuffle([...Array(N).keys()]))) {
+        if (opts.length === 4) break;
+        if (opts.includes(j)) continue;
+        const l = label(j);
+        if (seen.has(l)) continue;
+        seen.add(l); opts.push(j);
+      }
+      return { i, type, opts: shuffle(opts) };
+    });
+  }
+
+  function renderQuiz(fresh = false) {
+    const root = $('#view-quiz');
+    hideTip();
+    const started = startedIdx().length;
+    if (!quiz.qs) {
+      if (started < 4) {
+        root.innerHTML = `<div class="empty"><h2 id="quiz-title">Learn a few words first.</h2>
+          <p>The quiz only uses words you’ve already studied, and you need at least 4. You’ve started ${started}.</p>
+          <div class="row"><a class="btn primary" href="#/study">Start studying</a></div></div>`;
+        return;
+      }
+      const lens = [10, 20, 50].filter((n) => n < started);
+      const choices = lens.map((n) => [n, String(n)]).concat([[started, `All ${started}`]]);
+      if (!choices.some(([n]) => n === quiz.len)) quiz.len = choices[0][0];
+      root.innerHTML = `<div class="quiz-head">
+          <h1 id="quiz-title">Quiz</h1>
+          <p>Multiple choice on the ${plural(started, 'word')} you’ve studied: hear a word, read a word, or match the English. It doesn’t change your review schedule.</p>
+        </div>
+        <div class="panel">
+          <fieldset class="filters"><legend>How many questions</legend>
+            ${choices.map(([n, l]) => `<label><input type="radio" name="qlen" value="${n}"${n === quiz.len ? ' checked' : ''}><span>${l}</span></label>`).join('')}
+          </fieldset>
+          <button class="btn primary" data-act="quiz-start">Start quiz</button>
+        </div>`;
+      return;
+    }
+    if (quiz.k >= quiz.qs.length) return renderQuizEnd(root);
+
+    const q = quiz.qs[quiz.k], w = W[q.i], answered = quiz.picked != null;
+    let prompt;
+    if (q.type === 'hear') prompt = `<p class="card-ask">Listen. What does it mean?</p>
+      <div class="card-front"><button class="play big" data-act="quiz-play" aria-label="Play the word again">${ICON_PLAY}</button></div>`;
+    else if (q.type === 'w2en') prompt = `<p class="card-ask">What does this mean?</p>
+      <div class="card-front"><div class="spec-row">${staffHTML(w[P], 'head')}<button class="play" data-act="quiz-play" aria-label="Play the word">${ICON_PLAY}</button></div></div>`;
+    else prompt = `<p class="card-ask">Which one means this?</p><div class="card-front"><p class="prompt-en">${esc(gloss1(q.i))}</p></div>`;
+
+    const opts = q.opts.map((j, n) => {
+      const state = !answered ? '' : j === q.i ? ' right' : j === quiz.picked ? ' wrong' : ' dim';
+      const mark = !answered ? n + 1 : j === q.i ? '✓' : j === quiz.picked ? '✕' : n + 1;
+      const text = q.type === 'en2w' ? `<span class="py">${pyColored(W[j][P])}</span>` : `<span>${esc(gloss1(j))}</span>`;
+      return `<button class="opt${state}" data-act="quiz-pick" data-j="${j}"${answered ? ' disabled' : ''}><span class="key">${mark}</span>${text}</button>`;
+    }).join('');
+
+    const right = answered && quiz.picked === q.i;
+    const reveal = answered ? `<div class="quiz-reveal">
+        <p class="verdict">${right ? 'Right.' : 'Not quite. It’s this one:'}</p>
+        <div class="spec-row">${staffHTML(w[P], 'head')}<button class="play" data-act="quiz-play" aria-label="Play the word">${ICON_PLAY}</button></div>
+        <p class="gloss">${rich(w[EN])}</p>
+      </div>` : '';
+
+    root.innerHTML = `<div class="counts"><span>Question <b>${quiz.k + 1}</b> of ${quiz.qs.length}</span><span><b>${quiz.score}</b> right</span></div>
+      <div class="deck"><article class="card quiz-card">${prompt}<div class="opts">${opts}</div>${reveal}</article></div>
+      <div class="actions">${answered ? `<div class="row"><button class="btn primary" data-act="quiz-next">${quiz.k + 1 === quiz.qs.length ? 'See results' : 'Next'}</button></div>` : ''}
+      <p class="keys">${answered ? 'Space for next. R replays.' : '1 to 4 to answer. R replays.'}</p></div>`;
+    drawAll(root);
+    fitHead(root);
+    if (kbd) { const f = $(answered ? '[data-act="quiz-next"]' : '.opt', root); if (f) f.focus({ preventScroll: true }); }
+    if (fresh && q.type === 'hear' && !answered && !noVoice()) say(w[H], $('[data-act="quiz-play"]', root));
+  }
+
+  function renderQuizEnd(root) {
+    const n = quiz.qs.length, s = quiz.score, pct = s / n;
+    const line = pct === 1 ? 'Perfect. Annoyingly good.' : pct >= 0.8 ? 'Solid.' : pct >= 0.5 ? 'Not bad, not great.' : 'Rough. That’s what reviews are for.';
+    const misses = [...new Set(quiz.missed)];
+    root.innerHTML = `<div class="empty"><h2 id="quiz-title">${s} out of ${n}.</h2><p>${line}</p>
+        <div class="row">
+          ${misses.length && !quiz.sent ? `<button class="btn primary" data-act="quiz-send">Send ${plural(misses.length, 'miss', 'misses')} to Study</button>` : ''}
+          <button class="btn${misses.length && !quiz.sent ? '' : ' primary'}" data-act="quiz-new">New quiz</button>
+        </div></div>
+      ${misses.length ? `<div class="panel"><h2>You missed</h2><ul class="misses">${misses.map((i) => `<li>
+          <span class="what"><span class="py">${pyColored(W[i][P])}</span><span class="en">${esc(gloss1(i))}</span></span>
+          <button class="play" data-act="say-i" data-i="${i}" aria-label="Play ${esc(plain(W[i][P]))}">${ICON_PLAY}</button></li>`).join('')}</ul></div>` : ''}`;
+  }
+
+  function quizPick(j) {
+    if (!quiz.qs || quiz.picked != null) return;
+    const q = quiz.qs[quiz.k];
+    quiz.picked = j;
+    if (j === q.i) quiz.score++; else quiz.missed.push(q.i);
+    renderQuiz();
+    if (!noVoice() && S.settings.autoplay) say(W[q.i][H], $('.quiz-reveal [data-act="quiz-play"]'), $('.quiz-reveal .staff.head'));
+  }
+  function quizNext() {
+    if (!quiz.qs || quiz.picked == null) return;
+    quiz.k++; quiz.picked = null;
+    renderQuiz(true);
+    window.scrollTo(0, 0);
+  }
+  function quizStart() {
+    const sel = $('input[name="qlen"]:checked');
+    quiz.len = sel ? +sel.value : quiz.len;
+    Object.assign(quiz, { qs: buildQuiz(quiz.len), k: 0, score: 0, picked: null, missed: [], sent: false });
+    renderQuiz(true);
+  }
+  function quizSend() {
+    const now = Date.now();
+    const misses = [...new Set(quiz.missed)];
+    for (const i of misses) if (S.cards[i]) S.cards[i] = Object.assign(schedule(S.cards[i], 1, now), { ld: S.cards[i].ld });
+    save();
+    quiz.sent = true;
+    toast(`${plural(misses.length, 'word')} sent back to Study.`);
+    renderQuiz();
+  }
+
   // ---------------------------------------------------------------- words
   let wordsBuilt = false;
   function renderWords() {
@@ -854,7 +988,7 @@
         if (!d || typeof d !== 'object' || typeof d.cards !== 'object') throw new Error('shape');
         S = normalize(d);
         save(); applyDisplay(); TTS.pick();
-        sess.cur = null; sess.retry = []; wordsBuilt = false;
+        sess.cur = null; sess.retry = []; quiz.qs = null; wordsBuilt = false;
         toast(`Progress imported: ${plural(Object.keys(S.cards).length, 'word')}.`);
         renderSettings();
       } catch (e) {
@@ -873,7 +1007,7 @@
     clearTimeout(resetArmed); resetArmed = null;
     S = normalize({ settings: S.settings });
     save();
-    sess.cur = null; sess.retry = []; peekIdx = null;
+    sess.cur = null; sess.retry = []; quiz.qs = null; peekIdx = null;
     toast('Progress reset. Back to word one.');
     renderSettings();
   }
@@ -899,6 +1033,12 @@
     switch (act) {
       case 'flip': flip(); break;
       case 'grade': grade(+el.dataset.g); break;
+      case 'quiz-start': quizStart(); break;
+      case 'quiz-pick': quizPick(+el.dataset.j); break;
+      case 'quiz-next': quizNext(); break;
+      case 'quiz-new': quiz.qs = null; renderQuiz(); break;
+      case 'quiz-send': quizSend(); break;
+      case 'quiz-play': { const q = quiz.qs && quiz.qs[quiz.k]; if (q) say(W[q.i][H], el, el.closest('.spec-row') ? $('.staff.head', el.closest('.spec-row')) : null); break; }
       case 'dk': dontKnow(); break;
       case 'cont': continueOn(); break;
       case 'intro': introduce(false); break;
@@ -937,6 +1077,14 @@
   });
 
   document.addEventListener('keydown', (e) => {
+    if (current === 'quiz' && quiz.qs && !e.metaKey && !e.ctrlKey && !e.altKey && !e.target.closest('input, select, textarea')) {
+      const k = e.key.toLowerCase(), q = quiz.qs[quiz.k];
+      if (!q) return;
+      if (/^[1-4]$/.test(k) && quiz.picked == null) { e.preventDefault(); quizPick(q.opts[+k - 1]); }
+      else if ((k === ' ' || k === 'enter') && quiz.picked != null && !e.target.closest('button, a')) { e.preventDefault(); quizNext(); }
+      else if (k === 'r') say(W[q.i][H], $('[data-act="quiz-play"]'));
+      return;
+    }
     if (current !== 'study' || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target.closest('input, select, textarea')) return;
     const onControl = e.target.closest('button, a, label');
