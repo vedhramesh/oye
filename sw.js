@@ -1,6 +1,6 @@
 // Offline support. Serves from cache, then refreshes the cache in the background,
 // so a new deploy shows up on the next visit. Bump VERSION to force a clean cache.
-const VERSION = 'oye-v3';
+const VERSION = 'oye-v4';
 const ASSETS = [
   './',
   './index.html',

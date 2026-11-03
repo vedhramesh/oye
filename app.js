@@ -120,7 +120,7 @@
 
   // ---------------------------------------------------------------- storage
   const KEY = 'oye.v1';
-  const DEFAULTS = { newPerDay: 20, direction: 'mixed', autoplay: true, voice: '', rate: 0.9, toneColors: true, contours: true };
+  const DEFAULTS = { newPerDay: 20, direction: 'mixed', autoplay: true, voice: '', rate: 0.9, toneColors: true, contours: true, quizAudio: true };
   function normalize(d) {
     d = d && typeof d === 'object' ? d : {};
     const cards = {};
@@ -688,7 +688,7 @@
   function buildQuiz(len) {
     const learned = startedIdx();
     const pool = shuffle(learned).slice(0, len);
-    const types = shuffle(noVoice() ? ['en2w', 'w2en'] : ['hear', 'en2w', 'w2en']);
+    const types = shuffle(noVoice() || !S.settings.quizAudio ? ['en2w', 'w2en'] : ['hear', 'en2w', 'w2en']);
     return pool.map((i, n) => {
       const type = types[n % types.length];
       const label = (j) => (type === 'en2w' ? plain(W[j][P]) : gloss1(j));
@@ -728,6 +728,8 @@
           <fieldset class="filters"><legend>How many questions</legend>
             ${choices.map(([n, l]) => `<label><input type="radio" name="qlen" value="${n}"${n === quiz.len ? ' checked' : ''}><span>${l}</span></label>`).join('')}
           </fieldset>
+          <div class="set"><div class="lbl"><b>Listening questions</b><span>${noVoice() ? 'Off: no voice on this device.' : 'Questions where you hear a word and pick its meaning.'}</span></div>
+            <label class="switch"><input type="checkbox" id="quizAudio"${S.settings.quizAudio && !noVoice() ? ' checked' : ''}${noVoice() ? ' disabled' : ''}><span></span><b class="vh">Listening questions</b></label></div>
           <button class="btn primary" data-act="quiz-start">Start quiz</button>
         </div>`;
       return;
@@ -1063,6 +1065,7 @@
     if (t.id === 'newPerDay') { const v = Math.max(0, Math.min(200, Math.round(+t.value || 0))); t.value = v; setSetting('newPerDay', v); sess.cur = sess.mode === 'intro' ? null : sess.cur; }
     else if (t.name === 'direction') { setSetting('direction', t.value); if (sess.side === 'front') sess.cur = null; }
     else if (t.id === 'autoplay') setSetting('autoplay', t.checked);
+    else if (t.id === 'quizAudio') setSetting('quizAudio', t.checked);
     else if (t.id === 'voice') { setSetting('voice', t.value); TTS.pick(); }
     else if (t.id === 'toneColors') setSetting('toneColors', t.checked);
     else if (t.id === 'contours') { setSetting('contours', t.checked); wordsBuilt = false; renderSettings(); }
